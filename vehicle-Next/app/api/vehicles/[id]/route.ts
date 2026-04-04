@@ -69,12 +69,19 @@ export async function GET(
 
     const purchasePrice = moneyToNumber(vehicle.purchasePrice);
 
-    const expenses = vehicle.expenses.map((e) => ({
-      id: e.id,
-      amount: moneyToNumber(e.amount),
-      note: e.note,
-      createdAt: e.createdAt,
-    }));
+    const expenses = vehicle.expenses.map(
+      (e: {
+        id: string;
+        amount: unknown;
+        note: string | null;
+        createdAt: Date;
+      }) => ({
+        id: e.id,
+        amount: moneyToNumber(e.amount),
+        note: e.note,
+        createdAt: e.createdAt,
+      }),
+    );
 
     const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
     const totalInvested = purchasePrice + totalExpenses;
