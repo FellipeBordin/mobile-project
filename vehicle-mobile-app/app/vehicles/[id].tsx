@@ -1,168 +1,577 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import { Link, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
-import { API_URL } from "../../src/config/api";
-type ExpenseDTO = {
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { apiFetch } from "../../src/lib/api";
+
+type Expense = {
   id: string;
-  note: string;
   amount: number;
+  note?: string | null;
   createdAt: string;
 };
 
-type VehicleDetailDTO = {
+type Vehicle = {
   id: string;
   name: string;
   plate: string;
   status: "IN_STOCK" | "SOLD";
   purchasePrice: number;
+  purchaseDate?: string | null;
+  soldPrice?: number | null;
+  soldDate?: string | null;
   totalExpenses: number;
   totalInvested: number;
-  soldPrice: number | null;
-  profit: number | null;
-  expenses: ExpenseDTO[];
+  profit?: number | null;
+  createdAt: string;
+  expenses: Expense[];
 };
 
 function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleDateString("pt-BR");
 }
 
 export default function VehicleDetailScreen() {
+  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [data, setData] = useState<VehicleDetailDTO | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
-    setError(null);
-    const res = await fetch(`${API_URL}/api/vehicles/${id}`);
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`GET /api/vehicles/${id} ${res.status} ${text}`);
-    }
-    const json = (await res.json()) as VehicleDetailDTO;
-    setData(json);
-  }
-
- useFocusEffect(
-  useCallback(() => {
     if (!id) return;
 
-    load().catch((e) =>
-      setError(String(e?.message ?? e))
-    );
-  }, [id])
-);
-
-  async function onRefresh() {
-    setRefreshing(true);
     try {
-      await load();
-    } catch (e: any) {
-      setError(String(e?.message ?? e));
+      setLoading(true);
+
+      const res = await apiFetch(`/api/vehicles/${id}`);
+      const data = await res.json().catch(() => null);
+
+      if (res.status === 401) {
+        Alert.alert("Sessão expirada", "Faça login novamente.");
+        router.replace("/login");
+        return;
+      }
+
+      if (!res.ok) {
+        Alert.alert("Erro", data?.error ?? `Falha (${res.status})`);
+        return;
+      }
+
+      setVehicle(data);
+    } catch {
+      Alert.alert("Erro", "Não foi possível carregar o veículo.");
     } finally {
-      setRefreshing(false);
+      setLoading(false);
     }
   }
 
-  if (!data) {
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [id]),
+  );
+
+  function handleDelete() {
+    if (!vehicle) return;
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        `Tem certeza que deseja excluir "${vehicle.name}"?`,
+      );
+
+      if (confirmed) {
+        deleteVehicle();
+      }
+
+      return;
+    }
+
+    Alert.alert(
+      "Excluir veículo",
+      `Tem certeza que deseja excluir "${vehicle.name}"?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: deleteVehicle,
+        },
+      ],
+    );
+  }
+
+  async function deleteVehicle() {
+    if (!vehicle) return;
+
+    try {
+      setDeleting(true);
+
+      const res = await apiFetch(`/api/vehicles/${vehicle.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        Alert.alert("Sessão expirada", "Faça login novamente.");
+        router.replace("/login");
+        return;
+      }
+
+      if (!res.ok) {
+        Alert.alert("Erro", data?.error ?? `Falha (${res.status})`);
+        return;
+      }
+
+      Alert.alert("Sucesso", "Veículo excluído com sucesso.");
+      router.replace("/");
+    } catch {
+      Alert.alert("Erro", "Não foi possível excluir o veículo.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  if (loading) {
     return (
-      <View style={{ flex: 1, padding: 16, paddingTop: 48 }}>
-        <Text style={{ fontSize: 18, fontWeight: "700" }}>Carregando...</Text>
-        {error && <Text style={{ marginTop: 12, color: "#b91c1c" }}>{error}</Text>}
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 16,
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <Text>Carregando...</Text>
       </View>
     );
   }
 
-  const isSold = data.status === "SOLD";
-  const profit = data.profit ?? 0;
+  if (!vehicle) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 16,
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <Text style={{ fontSize: 16, fontWeight: "700" }}>
+          Veículo não encontrado.
+        </Text>
+
+        <Pressable
+          onPress={() => router.back()}
+          style={{
+            marginTop: 16,
+            backgroundColor: "#111",
+            paddingHorizontal: 18,
+            paddingVertical: 12,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "800" }}>Voltar</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const isSold = vehicle.status === "SOLD";
+
+  const profitColor =
+    vehicle.profit == null
+      ? "#111"
+      : vehicle.profit > 0
+        ? "#0f766e"
+        : vehicle.profit < 0
+          ? "#b91c1c"
+          : "#111";
+
+  const profitBg =
+    vehicle.profit == null
+      ? "#f3f4f6"
+      : vehicle.profit > 0
+        ? "#ccfbf1"
+        : vehicle.profit < 0
+          ? "#fee2e2"
+          : "#f3f4f6";
 
   return (
-    <View style={{ flex: 1, padding: 16, paddingTop: 48 }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 22, fontWeight: "900" }}>{data.name}</Text>
-          <Text style={{ color: "#666", marginTop: 2 }}>Placa: {data.plate}</Text>
+    <ScrollView
+      contentContainerStyle={{
+        padding: 16,
+        paddingTop: 48,
+        gap: 14,
+        backgroundColor: "#f5f5f5",
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: 20,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: "#e5e5e5",
+          shadowColor: "#000",
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 3,
+          gap: 14,
+        }}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 12,
+          }}
+        >
+          <View style={{ flexDirection: "row", gap: 12, flex: 1 }}>
+            <View
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 14,
+                backgroundColor: isSold ? "#dcfce7" : "#eff6ff",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <MaterialIcons
+                name="directions-car"
+                size={28}
+                color={isSold ? "#15803d" : "#2563eb"}
+              />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 24, fontWeight: "800" }}>
+                {vehicle.name}
+              </Text>
+              <Text style={{ color: "#666", marginTop: 4 }}>
+                Placa: {vehicle.plate}
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              paddingVertical: 6,
+              paddingHorizontal: 10,
+              borderRadius: 999,
+              backgroundColor: isSold ? "#dcfce7" : "#f3f4f6",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "800",
+                color: isSold ? "#166534" : "#374151",
+              }}
+            >
+              {isSold ? "Vendido" : "Em estoque"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <MiniInfoCard
+            icon="calendar-month"
+            label="Data da compra"
+            value={formatDate(vehicle.purchaseDate)}
+            bg="#f9fafb"
+            iconColor="#374151"
+          />
+          <MiniInfoCard
+            icon="sell"
+            label="Data da venda"
+            value={formatDate(vehicle.soldDate)}
+            bg={isSold ? "#dcfce7" : "#f9fafb"}
+            iconColor={isSold ? "#15803d" : "#374151"}
+          />
+        </View>
+
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <MiniInfoCard
+            icon="receipt-long"
+            label="Qtd. despesas"
+            value={String(vehicle.expenses.length)}
+            bg="#eff6ff"
+            iconColor="#2563eb"
+          />
+          <MiniInfoCard
+            icon="account-balance-wallet"
+            label="Investido"
+            value={formatBRL(vehicle.totalInvested)}
+            bg="#f9fafb"
+            iconColor="#374151"
+          />
+        </View>
+
+        <View style={{ gap: 8 }}>
+          <DetailRow
+            label="Preço de compra"
+            value={formatBRL(vehicle.purchasePrice)}
+          />
+          <DetailRow
+            label="Total de despesas"
+            value={formatBRL(vehicle.totalExpenses)}
+          />
+          <DetailRow
+            label="Total investido"
+            value={formatBRL(vehicle.totalInvested)}
+            bold
+          />
+          <DetailRow
+            label="Valor de venda"
+            value={
+              vehicle.soldPrice != null ? formatBRL(vehicle.soldPrice) : "-"
+            }
+            bold
+          />
         </View>
 
         <View
           style={{
-            paddingVertical: 6,
-            paddingHorizontal: 10,
-            borderRadius: 999,
-            backgroundColor: isSold ? "#eee" : "#d1fae5",
-            alignSelf: "flex-start",
+            backgroundColor: profitBg,
+            borderRadius: 16,
+            padding: 14,
+            gap: 6,
           }}
         >
-          <Text style={{ fontSize: 12, fontWeight: "800", color: isSold ? "#333" : "#065f46" }}>
-            {isSold ? "Vendido" : "Em estoque"}
+          <Text style={{ fontSize: 13, color: "#555" }}>Lucro / Prejuízo</Text>
+          <Text style={{ fontSize: 22, fontWeight: "800", color: profitColor }}>
+            {vehicle.profit != null ? formatBRL(vehicle.profit) : "-"}
           </Text>
         </View>
-      </View>
 
-      <View style={{ marginTop: 16, borderWidth: 1, borderColor: "#e5e5e5", borderRadius: 16, padding: 14, backgroundColor: "#fff" }}>
-        <Row label="Compra" value={formatBRL(data.purchasePrice)} />
-        <Row label="Gastos" value={formatBRL(data.totalExpenses)} />
-        <Row label="Total investido" value={formatBRL(data.totalInvested)} bold />
-        {isSold && data.soldPrice != null && (
-          <>
-            <Row label="Venda" value={formatBRL(data.soldPrice)} bold />
-            <Row label="Resultado" value={formatBRL(profit)} bold valueColor={profit >= 0 ? "#0f766e" : "#b91c1c"} />
-          </>
-        )}
-      </View>
-
-      <View style={{ marginTop: 16, flexDirection: "row", gap: 10 }}>
-        <Link href={`/vehicles/${data.id}/add-expense`} asChild>
-          <Pressable style={{ flex: 1, backgroundColor: "#111", paddingVertical: 12, borderRadius: 12, alignItems: "center" }}>
-            <Text style={{ color: "#fff", fontWeight: "900" }}>+ Adicionar gasto</Text>
+        <View style={{ flexDirection: "row", gap: 12, marginTop: 4 }}>
+          <Pressable
+            onPress={() => router.push(`/vehicles/${vehicle.id}/expense`)}
+            style={{
+              flex: 1,
+              backgroundColor: "#111",
+              paddingVertical: 12,
+              borderRadius: 14,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "800" }}>
+              Adicionar despesa
+            </Text>
           </Pressable>
-        </Link>
 
-        {!isSold && (
-          <Link href={`/vehicles/${data.id}/sell`} asChild>
-            <Pressable style={{ flex: 1, borderWidth: 1, borderColor: "#111", paddingVertical: 12, borderRadius: 12, alignItems: "center" }}>
-              <Text style={{ color: "#111", fontWeight: "900" }}>Marcar vendido</Text>
+          {!isSold && (
+            <Pressable
+              onPress={() => router.push(`/vehicles/${vehicle.id}/sell`)}
+              style={{
+                flex: 1,
+                backgroundColor: "#16a34a",
+                paddingVertical: 12,
+                borderRadius: 14,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "800" }}>
+                Marcar vendido
+              </Text>
             </Pressable>
-          </Link>
+          )}
+        </View>
+
+        <Pressable
+          onPress={handleDelete}
+          disabled={deleting}
+          style={{
+            backgroundColor: "#dc2626",
+            paddingVertical: 12,
+            borderRadius: 14,
+            alignItems: "center",
+            opacity: deleting ? 0.6 : 1,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "800" }}>
+            {deleting ? "Excluindo..." : "Excluir veículo"}
+          </Text>
+        </Pressable>
+      </View>
+
+      <View
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: 20,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: "#e5e5e5",
+          shadowColor: "#000",
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 3,
+          gap: 12,
+        }}
+      >
+        <Text style={{ fontSize: 18, fontWeight: "800" }}>Despesas</Text>
+
+        {vehicle.expenses.length === 0 ? (
+          <View
+            style={{
+              backgroundColor: "#f9fafb",
+              borderRadius: 14,
+              padding: 14,
+              borderWidth: 1,
+              borderColor: "#e5e5e5",
+            }}
+          >
+            <Text style={{ color: "#666" }}>Nenhuma despesa cadastrada.</Text>
+          </View>
+        ) : (
+          vehicle.expenses.map((expense) => (
+            <ExpenseItem
+              key={expense.id}
+              note={expense.note}
+              amount={expense.amount}
+              createdAt={expense.createdAt}
+            />
+          ))
         )}
       </View>
 
-      <Text style={{ marginTop: 18, fontSize: 16, fontWeight: "900" }}>Gastos</Text>
+      <Pressable
+        onPress={() => router.back()}
+        style={{ paddingVertical: 12, alignItems: "center" }}
+      >
+        <Text style={{ color: "#111", fontWeight: "700" }}>Voltar</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
 
-      <FlatList
-        style={{ marginTop: 10 }}
-        data={data.expenses}
-        keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={<Text style={{ color: "#666", marginTop: 8 }}>Nenhum gasto lançado.</Text>}
-        renderItem={({ item }) => (
-          <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee" }}>
-            <Text style={{ fontWeight: "900" }}>{item.note}</Text>
-            <Text style={{ color: "#111", marginTop: 2 }}>{formatBRL(item.amount)}</Text>
-          </View>
-        )}
-      />
+function MiniInfoCard({
+  icon,
+  label,
+  value,
+  bg,
+  iconColor,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  label: string;
+  value: string;
+  bg: string;
+  iconColor: string;
+}) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: bg,
+        borderRadius: 14,
+        padding: 12,
+        gap: 8,
+      }}
+    >
+      <MaterialIcons name={icon} size={22} color={iconColor} />
+      <Text style={{ fontSize: 15, fontWeight: "800", color: "#111" }}>
+        {value}
+      </Text>
+      <Text style={{ fontSize: 12, color: "#555" }}>{label}</Text>
     </View>
   );
 }
 
-function Row({
+function DetailRow({
   label,
   value,
   bold,
-  valueColor,
 }: {
   label: string;
   value: string;
   bold?: boolean;
-  valueColor?: string;
 }) {
   return (
-    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-      <Text style={{ color: "#333" }}>{label}</Text>
-      <Text style={{ fontWeight: bold ? "900" : "700", color: valueColor ?? "#111" }}>{value}</Text>
+    <View
+      style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}
+    >
+      <Text style={{ color: "#444" }}>{label}</Text>
+      <Text style={{ fontWeight: bold ? "800" : "600", color: "#111" }}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function ExpenseItem({
+  note,
+  amount,
+  createdAt,
+}: {
+  note?: string | null;
+  amount: number;
+  createdAt: string;
+}) {
+  const formattedDate = formatDate(createdAt);
+
+  return (
+    <View
+      style={{
+        backgroundColor: "#f9fafb",
+        borderWidth: 1,
+        borderColor: "#e5e5e5",
+        borderRadius: 14,
+        padding: 12,
+        gap: 6,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <Text
+          style={{ flex: 1, fontSize: 15, fontWeight: "700", color: "#111" }}
+        >
+          {note?.trim() ? note : "Despesa sem descrição"}
+        </Text>
+
+        <Text style={{ fontSize: 15, fontWeight: "800", color: "#b91c1c" }}>
+          {formatBRL(amount)}
+        </Text>
+      </View>
+
+      <Text style={{ fontSize: 12, color: "#666" }}>{formattedDate}</Text>
     </View>
   );
 }

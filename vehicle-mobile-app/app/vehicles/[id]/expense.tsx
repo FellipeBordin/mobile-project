@@ -4,28 +4,34 @@ import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { apiFetch } from "../../../src/lib/api";
 
-export default function SellVehicleScreen() {
+export default function NewExpenseScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const [soldPrice, setSoldPrice] = useState("");
+  const [note, setNote] = useState("");
+  const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function confirmSale() {
+  async function saveExpense() {
     const payload = {
-      soldPrice: Number(soldPrice),
+      vehicleId: id,
+      note: note.trim(),
+      amount: Number(amount),
     };
 
-    if (!id || !Number.isFinite(payload.soldPrice) || payload.soldPrice <= 0) {
-      Alert.alert("Atenção", "Digite um valor de venda válido.");
+    if (
+      !payload.vehicleId ||
+      !Number.isFinite(payload.amount) ||
+      payload.amount <= 0
+    ) {
+      Alert.alert("Atenção", "Preencha o valor da despesa corretamente.");
       return;
     }
 
     setLoading(true);
-
     try {
-      const res = await apiFetch(`/api/vehicles/${id}`, {
-        method: "PUT",
+      const res = await apiFetch("/api/expenses", {
+        method: "POST",
         body: JSON.stringify(payload),
       });
 
@@ -42,10 +48,10 @@ export default function SellVehicleScreen() {
         return;
       }
 
-      Alert.alert("Sucesso", "Veículo marcado como vendido!");
+      Alert.alert("Sucesso", "Despesa cadastrada!");
       router.back();
     } catch {
-      Alert.alert("Erro", "Não foi possível concluir a venda.");
+      Alert.alert("Erro", "Não foi possível salvar a despesa.");
     } finally {
       setLoading(false);
     }
@@ -81,38 +87,45 @@ export default function SellVehicleScreen() {
               width: 52,
               height: 52,
               borderRadius: 14,
-              backgroundColor: "#dcfce7",
+              backgroundColor: "#eff6ff",
               justifyContent: "center",
               alignItems: "center",
             }}
           >
-            <MaterialIcons name="sell" size={28} color="#15803d" />
+            <MaterialIcons name="receipt-long" size={28} color="#2563eb" />
           </View>
 
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 24, fontWeight: "800" }}>
-              Marcar como vendido
+              Nova despesa
             </Text>
             <Text style={{ color: "#666", marginTop: 4 }}>
-              Informe o valor final da venda
+              Informe o que foi gasto e o valor
             </Text>
           </View>
         </View>
 
         <Field
-          label="Valor de venda"
-          value={soldPrice}
-          onChangeText={setSoldPrice}
-          placeholder="Digite o valor da venda"
+          label="Descrição"
+          value={note}
+          onChangeText={setNote}
+          placeholder="Ex: banco rasgado, pneu furado"
+        />
+
+        <Field
+          label="Valor gasto"
+          value={amount}
+          onChangeText={setAmount}
+          placeholder="Digite o valor gasto"
           keyboardType="numeric"
         />
 
         <Pressable
-          onPress={confirmSale}
+          onPress={saveExpense}
           disabled={loading}
           style={{
             marginTop: 4,
-            backgroundColor: "#16a34a",
+            backgroundColor: "#111",
             paddingVertical: 12,
             borderRadius: 14,
             opacity: loading ? 0.6 : 1,
@@ -120,7 +133,7 @@ export default function SellVehicleScreen() {
           }}
         >
           <Text style={{ color: "#fff", fontWeight: "800" }}>
-            {loading ? "Salvando..." : "Confirmar venda"}
+            {loading ? "Salvando..." : "Salvar despesa"}
           </Text>
         </Pressable>
       </View>

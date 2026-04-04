@@ -1,51 +1,49 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
-import { apiFetch } from "../../../src/lib/api";
+import { API_URL } from "../src/config/api";
+import { setToken, setUser } from "../src/lib/session";
 
-export default function SellVehicleScreen() {
+export default function LoginScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
 
-  const [soldPrice, setSoldPrice] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function confirmSale() {
-    const payload = {
-      soldPrice: Number(soldPrice),
-    };
-
-    if (!id || !Number.isFinite(payload.soldPrice) || payload.soldPrice <= 0) {
-      Alert.alert("Atenção", "Digite um valor de venda válido.");
+  async function handleLogin() {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Atenção", "Preencha e-mail e senha.");
       return;
     }
 
     setLoading(true);
-
     try {
-      const res = await apiFetch(`/api/vehicles/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
-
-      if (res.status === 401) {
-        Alert.alert("Sessão expirada", "Faça login novamente.");
-        router.replace("/login");
-        return;
-      }
 
       if (!res.ok) {
         Alert.alert("Erro", data?.error ?? `Falha (${res.status})`);
         return;
       }
 
-      Alert.alert("Sucesso", "Veículo marcado como vendido!");
-      router.back();
+      await setToken(data.token);
+      await setUser(data.user);
+
+      router.replace("/");
     } catch {
-      Alert.alert("Erro", "Não foi possível concluir a venda.");
+      Alert.alert("Erro", "Não foi possível fazer login.");
     } finally {
       setLoading(false);
     }
@@ -81,38 +79,44 @@ export default function SellVehicleScreen() {
               width: 52,
               height: 52,
               borderRadius: 14,
-              backgroundColor: "#dcfce7",
+              backgroundColor: "#eff6ff",
               justifyContent: "center",
               alignItems: "center",
             }}
           >
-            <MaterialIcons name="sell" size={28} color="#15803d" />
+            <MaterialIcons name="lock" size={28} color="#2563eb" />
           </View>
 
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 24, fontWeight: "800" }}>
-              Marcar como vendido
-            </Text>
+            <Text style={{ fontSize: 24, fontWeight: "800" }}>Entrar</Text>
             <Text style={{ color: "#666", marginTop: 4 }}>
-              Informe o valor final da venda
+              Acesse sua conta para ver seus veículos
             </Text>
           </View>
         </View>
 
         <Field
-          label="Valor de venda"
-          value={soldPrice}
-          onChangeText={setSoldPrice}
-          placeholder="Digite o valor da venda"
-          keyboardType="numeric"
+          label="E-mail"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Digite seu e-mail"
+          autoCapitalize="none"
+        />
+
+        <Field
+          label="Senha"
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Digite sua senha"
+          secureTextEntry
         />
 
         <Pressable
-          onPress={confirmSale}
+          onPress={handleLogin}
           disabled={loading}
           style={{
             marginTop: 4,
-            backgroundColor: "#16a34a",
+            backgroundColor: "#111",
             paddingVertical: 12,
             borderRadius: 14,
             opacity: loading ? 0.6 : 1,
@@ -120,17 +124,18 @@ export default function SellVehicleScreen() {
           }}
         >
           <Text style={{ color: "#fff", fontWeight: "800" }}>
-            {loading ? "Salvando..." : "Confirmar venda"}
+            {loading ? "Entrando..." : "Entrar"}
           </Text>
         </Pressable>
       </View>
 
-      <Pressable
-        onPress={() => router.back()}
-        style={{ paddingVertical: 14, alignItems: "center", marginTop: 14 }}
-      >
-        <Text style={{ color: "#111", fontWeight: "700" }}>Cancelar</Text>
-      </Pressable>
+      <Link href="/register" asChild>
+        <Pressable
+          style={{ paddingVertical: 14, alignItems: "center", marginTop: 14 }}
+        >
+          <Text style={{ color: "#111", fontWeight: "700" }}>Criar conta</Text>
+        </Pressable>
+      </Link>
     </View>
   );
 }

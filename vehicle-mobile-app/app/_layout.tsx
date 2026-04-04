@@ -1,24 +1,75 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { Stack, usePathname, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Text, View } from "react-native";
+import { getToken } from "../src/lib/session";
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkAuth() {
+      try {
+        const token = await getToken();
+        const loggedIn = !!token;
+
+        if (!mounted) return;
+
+        const isAuthPage = pathname === "/login" || pathname === "/register";
+
+        if (!loggedIn && !isAuthPage) {
+          router.replace("/login");
+          return;
+        }
+
+        if (loggedIn && isAuthPage) {
+          router.replace("/");
+          return;
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    checkAuth();
+
+    return () => {
+      mounted = false;
+    };
+  }, [pathname, router]);
+
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#f5f5f5",
+          gap: 12,
+        }}
+      >
+        <ActivityIndicator size="large" />
+        <Text style={{ color: "#666" }}>Carregando...</Text>
+      </View>
+    );
+  }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="login" />
+      <Stack.Screen name="register" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="new" />
+      <Stack.Screen name="vehicles/[id]" />
+      <Stack.Screen name="vehicles/[id]/expense" />
+      <Stack.Screen name="vehicles/[id]/sell" />
+    </Stack>
   );
 }
