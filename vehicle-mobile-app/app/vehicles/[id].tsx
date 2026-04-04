@@ -61,6 +61,9 @@ export default function VehicleDetailScreen() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
+    null,
+  );
 
   async function load() {
     if (!id) return;
@@ -96,7 +99,7 @@ export default function VehicleDetailScreen() {
     }, [id]),
   );
 
-  function handleDelete() {
+  function handleDeleteVehicle() {
     if (!vehicle) return;
 
     if (Platform.OS === "web") {
@@ -154,6 +157,59 @@ export default function VehicleDetailScreen() {
       Alert.alert("Erro", "Não foi possível excluir o veículo.");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  function handleDeleteExpense(expenseId: string) {
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Deseja realmente excluir esta despesa?",
+      );
+
+      if (confirmed) {
+        deleteExpense(expenseId);
+      }
+
+      return;
+    }
+
+    Alert.alert("Excluir despesa", "Deseja realmente excluir esta despesa?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Excluir",
+        style: "destructive",
+        onPress: () => deleteExpense(expenseId),
+      },
+    ]);
+  }
+
+  async function deleteExpense(expenseId: string) {
+    try {
+      setDeletingExpenseId(expenseId);
+
+      const res = await apiFetch(`/api/expenses/${expenseId}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        Alert.alert("Sessão expirada", "Faça login novamente.");
+        router.replace("/login");
+        return;
+      }
+
+      if (!res.ok) {
+        Alert.alert("Erro", data?.error ?? `Falha (${res.status})`);
+        return;
+      }
+
+      Alert.alert("Sucesso", "Despesa excluída com sucesso.");
+      await load();
+    } catch {
+      Alert.alert("Erro", "Não foi possível excluir a despesa.");
+    } finally {
+      setDeletingExpenseId(null);
     }
   }
 
@@ -410,7 +466,7 @@ export default function VehicleDetailScreen() {
         </View>
 
         <Pressable
-          onPress={handleDelete}
+          onPress={handleDeleteVehicle}
           disabled={deleting}
           style={{
             backgroundColor: "#dc2626",
@@ -462,6 +518,14 @@ export default function VehicleDetailScreen() {
               note={expense.note}
               amount={expense.amount}
               createdAt={expense.createdAt}
+              onEdit={() =>
+                router.push({
+                  pathname: "/expenses/[id]/edit",
+                  params: { id: expense.id },
+                })
+              }
+              onDelete={() => handleDeleteExpense(expense.id)}
+              deleting={deletingExpenseId === expense.id}
             />
           ))
         )}
@@ -534,10 +598,16 @@ function ExpenseItem({
   note,
   amount,
   createdAt,
+  onEdit,
+  onDelete,
+  deleting,
 }: {
   note?: string | null;
   amount: number;
   createdAt: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleting: boolean;
 }) {
   const formattedDate = formatDate(createdAt);
 
@@ -549,7 +619,7 @@ function ExpenseItem({
         borderColor: "#e5e5e5",
         borderRadius: 14,
         padding: 12,
-        gap: 6,
+        gap: 10,
       }}
     >
       <View
@@ -572,6 +642,38 @@ function ExpenseItem({
       </View>
 
       <Text style={{ fontSize: 12, color: "#666" }}>{formattedDate}</Text>
+
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <Pressable
+          onPress={onEdit}
+          style={{
+            flex: 1,
+            backgroundColor: "#111",
+            paddingVertical: 10,
+            borderRadius: 12,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "700" }}>Editar</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={onDelete}
+          disabled={deleting}
+          style={{
+            flex: 1,
+            backgroundColor: "#dc2626",
+            paddingVertical: 10,
+            borderRadius: 12,
+            alignItems: "center",
+            opacity: deleting ? 0.6 : 1,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "700" }}>
+            {deleting ? "Excluindo..." : "Excluir"}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }

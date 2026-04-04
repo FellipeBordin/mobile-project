@@ -70,6 +70,7 @@ export default function RootLayout() {
       <Stack.Screen name="vehicles/[id]" />
       <Stack.Screen name="vehicles/[id]/expense" />
       <Stack.Screen name="vehicles/[id]/sell" />
+      <Stack.Screen name="expenses/[id]/edit" />
     </Stack>
   );
 }
