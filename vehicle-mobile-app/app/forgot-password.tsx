@@ -4,58 +4,56 @@ import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { apiFetch } from "../src/lib/api";
 
-export default function NewVehicle() {
+export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [plate, setPlate] = useState("");
-  const [purchasePrice, setPurchasePrice] = useState("");
-  const [previousOwnerName, setPreviousOwnerName] = useState("");
-  const [previousOwnerPhone, setPreviousOwnerPhone] = useState("");
+
+  const [email, setEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function save() {
-    const payload = {
-      name: name.trim(),
-      plate: plate.trim().toUpperCase(),
-      purchasePrice: Number(purchasePrice),
-      previousOwnerName: previousOwnerName.trim(),
-      previousOwnerPhone: previousOwnerPhone.trim(),
-    };
+  async function handleResetPassword() {
+    const normalizedEmail = email.trim().toLowerCase();
+    const password = newPassword.trim();
+    const confirm = confirmPassword.trim();
 
-    if (
-      !payload.name ||
-      !payload.plate ||
-      !Number.isFinite(payload.purchasePrice) ||
-      payload.purchasePrice <= 0
-    ) {
-      Alert.alert("Atenção", "Preencha nome, placa e preço corretamente.");
+    if (!normalizedEmail || !password || !confirm) {
+      Alert.alert("Atenção", "Preencha e-mail, nova senha e confirmação.");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Atenção", "A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (password !== confirm) {
+      Alert.alert("Atenção", "A confirmação da senha não confere.");
       return;
     }
 
     setLoading(true);
+
     try {
-      const res = await apiFetch("/api/vehicles", {
+      const res = await apiFetch("/api/auth/reset-password", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          email: normalizedEmail,
+          newPassword: password,
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
-
-      if (res.status === 401) {
-        Alert.alert("Sessão expirada", "Faça login novamente.");
-        router.replace("/login");
-        return;
-      }
 
       if (!res.ok) {
         Alert.alert("Erro", data?.error ?? `Falha (${res.status})`);
         return;
       }
 
-      Alert.alert("Sucesso", "Veículo cadastrado!");
-      router.replace("/");
+      Alert.alert("Sucesso", "Senha alterada com sucesso.");
+      router.replace("/login");
     } catch {
-      Alert.alert("Erro", "Não foi possível conectar com a API.");
+      Alert.alert("Erro", "Não foi possível resetar a senha.");
     } finally {
       setLoading(false);
     }
@@ -96,59 +94,46 @@ export default function NewVehicle() {
               alignItems: "center",
             }}
           >
-            <MaterialIcons name="directions-car" size={28} color="#2563eb" />
+            <MaterialIcons name="lock-reset" size={28} color="#2563eb" />
           </View>
 
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 24, fontWeight: "800" }}>
-              Novo veículo
+              Resetar senha
             </Text>
             <Text style={{ color: "#666", marginTop: 4 }}>
-              Cadastre um veículo para controlar compra, despesas e venda
+              Informe seu e-mail e defina uma nova senha
             </Text>
           </View>
         </View>
 
         <Field
-          label="Nome do veículo"
-          value={name}
-          onChangeText={setName}
-          placeholder="Ex: Gol 1.6"
+          label="E-mail"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Digite seu e-mail"
+          autoCapitalize="none"
+          keyboardType="email-address"
         />
 
         <Field
-          label="Placa"
-          value={plate}
-          onChangeText={setPlate}
-          placeholder="Digite a placa do veículo"
-          autoCapitalize="characters"
+          label="Nova senha"
+          value={newPassword}
+          onChangeText={setNewPassword}
+          placeholder="Digite a nova senha"
+          secureTextEntry
         />
 
         <Field
-          label="Preço de compra"
-          value={purchasePrice}
-          onChangeText={setPurchasePrice}
-          placeholder="Digite o valor pago pelo veículo"
-          keyboardType="numeric"
-        />
-
-        <Field
-          label="Nome do ex-proprietário"
-          value={previousOwnerName}
-          onChangeText={setPreviousOwnerName}
-          placeholder="Digite o nome do ex-proprietário"
-        />
-
-        <Field
-          label="Telefone do ex-proprietário"
-          value={previousOwnerPhone}
-          onChangeText={setPreviousOwnerPhone}
-          placeholder="Digite o telefone"
-          keyboardType="phone-pad"
+          label="Confirmar nova senha"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          placeholder="Repita a nova senha"
+          secureTextEntry
         />
 
         <Pressable
-          onPress={save}
+          onPress={handleResetPassword}
           disabled={loading}
           style={{
             marginTop: 4,
@@ -160,16 +145,18 @@ export default function NewVehicle() {
           }}
         >
           <Text style={{ color: "#fff", fontWeight: "800" }}>
-            {loading ? "Salvando..." : "Salvar veículo"}
+            {loading ? "Salvando..." : "Salvar nova senha"}
           </Text>
         </Pressable>
       </View>
 
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => router.replace("/login")}
         style={{ paddingVertical: 14, alignItems: "center", marginTop: 14 }}
       >
-        <Text style={{ color: "#111", fontWeight: "700" }}>Cancelar</Text>
+        <Text style={{ color: "#111", fontWeight: "700" }}>
+          Voltar para login
+        </Text>
       </Pressable>
     </View>
   );

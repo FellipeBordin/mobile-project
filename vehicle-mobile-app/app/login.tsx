@@ -1,8 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
-import { API_URL } from "../src/config/api";
+import { apiFetch } from "../src/lib/api";
 import { setToken, setUser } from "../src/lib/session";
 
 export default function LoginScreen() {
@@ -19,14 +19,12 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
+
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
+      const res = await apiFetch("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
-          email: email.trim(),
+          email: email.trim().toLowerCase(),
           password,
         }),
       });
@@ -47,6 +45,14 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function goToForgotPassword() {
+    router.replace("/forgot-password");
+  }
+
+  function goToRegister() {
+    router.replace("/register");
   }
 
   return (
@@ -101,6 +107,7 @@ export default function LoginScreen() {
           onChangeText={setEmail}
           placeholder="Digite seu e-mail"
           autoCapitalize="none"
+          keyboardType="email-address"
         />
 
         <Field
@@ -129,13 +136,21 @@ export default function LoginScreen() {
         </Pressable>
       </View>
 
-      <Link href="/register" asChild>
-        <Pressable
-          style={{ paddingVertical: 14, alignItems: "center", marginTop: 14 }}
-        >
-          <Text style={{ color: "#111", fontWeight: "700" }}>Criar conta</Text>
-        </Pressable>
-      </Link>
+      <Pressable
+        onPress={goToForgotPassword}
+        style={{ paddingVertical: 10, alignItems: "center", marginTop: 14 }}
+      >
+        <Text style={{ color: "#111", fontWeight: "700" }}>
+          Esqueci minha senha
+        </Text>
+      </Pressable>
+
+      <Pressable
+        onPress={goToRegister}
+        style={{ paddingVertical: 10, alignItems: "center" }}
+      >
+        <Text style={{ color: "#111", fontWeight: "700" }}>Criar conta</Text>
+      </Pressable>
     </View>
   );
 }

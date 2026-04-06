@@ -25,6 +25,19 @@ function moneyToNumber(v: unknown): number {
   return Number(v);
 }
 
+type ExpenseItem = {
+  id: string;
+  amount: number;
+  note: string | null;
+  createdAt: Date;
+};
+
+type PutBody = {
+  soldPrice?: unknown;
+  buyerName?: unknown;
+  buyerPhone?: unknown;
+};
+
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -69,7 +82,7 @@ export async function GET(
 
     const purchasePrice = moneyToNumber(vehicle.purchasePrice);
 
-    const expenses = vehicle.expenses.map(
+    const expenses: ExpenseItem[] = vehicle.expenses.map(
       (e: (typeof vehicle.expenses)[number]) => ({
         id: e.id,
         amount: moneyToNumber(e.amount),
@@ -79,7 +92,7 @@ export async function GET(
     );
 
     const totalExpenses = expenses.reduce(
-      (acc: number, e) => acc + e.amount,
+      (acc: number, e: ExpenseItem) => acc + e.amount,
       0,
     );
     const totalInvested = purchasePrice + totalExpenses;
@@ -134,7 +147,7 @@ export async function PUT(
   }
 
   const { id } = await context.params;
-  const body = await req.json().catch(() => null);
+  const body = (await req.json().catch(() => null)) as PutBody | null;
 
   const soldPrice = Number(body?.soldPrice);
 

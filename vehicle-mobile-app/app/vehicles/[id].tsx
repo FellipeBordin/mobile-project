@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
+
 "use client";
 
 import { MaterialIcons } from "@expo/vector-icons";
@@ -28,8 +29,12 @@ type Vehicle = {
   status: "IN_STOCK" | "SOLD";
   purchasePrice: number;
   purchaseDate?: string | null;
+  previousOwnerName?: string | null;
+  previousOwnerPhone?: string | null;
   soldPrice?: number | null;
   soldDate?: string | null;
+  buyerName?: string | null;
+  buyerPhone?: string | null;
   totalExpenses: number;
   totalInvested: number;
   profit?: number | null;
@@ -394,28 +399,33 @@ export default function VehicleDetailScreen() {
           />
         </View>
 
-        <View style={{ gap: 8 }}>
-          <DetailRow
-            label="Preço de compra"
-            value={formatBRL(vehicle.purchasePrice)}
-          />
-          <DetailRow
-            label="Total de despesas"
-            value={formatBRL(vehicle.totalExpenses)}
-          />
-          <DetailRow
-            label="Total investido"
-            value={formatBRL(vehicle.totalInvested)}
-            bold
-          />
-          <DetailRow
-            label="Valor de venda"
-            value={
-              vehicle.soldPrice != null ? formatBRL(vehicle.soldPrice) : "-"
-            }
-            bold
-          />
-        </View>
+        <InfoBlock
+          title="Dados da compra"
+          rows={[
+            {
+              label: "Preço de compra",
+              value: formatBRL(vehicle.purchasePrice),
+            },
+            {
+              label: "Ex-proprietário",
+              value: vehicle.previousOwnerName || "-",
+            },
+            { label: "Telefone", value: vehicle.previousOwnerPhone || "-" },
+          ]}
+        />
+
+        <InfoBlock
+          title="Dados da venda"
+          rows={[
+            {
+              label: "Valor de venda",
+              value:
+                vehicle.soldPrice != null ? formatBRL(vehicle.soldPrice) : "-",
+            },
+            { label: "Comprador", value: vehicle.buyerName || "-" },
+            { label: "Telefone", value: vehicle.buyerPhone || "-" },
+          ]}
+        />
 
         <View
           style={{
@@ -573,23 +583,48 @@ function MiniInfoCard({
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  bold,
+function InfoBlock({
+  title,
+  rows,
 }: {
-  label: string;
-  value: string;
-  bold?: boolean;
+  title: string;
+  rows: { label: string; value: string }[];
 }) {
   return (
     <View
-      style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}
+      style={{
+        backgroundColor: "#f9fafb",
+        borderRadius: 16,
+        padding: 14,
+        gap: 8,
+      }}
     >
-      <Text style={{ color: "#444" }}>{label}</Text>
-      <Text style={{ fontWeight: bold ? "800" : "600", color: "#111" }}>
-        {value}
+      <Text style={{ fontSize: 16, fontWeight: "800", color: "#111" }}>
+        {title}
       </Text>
+
+      {rows.map((row) => (
+        <View
+          key={row.label}
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <Text style={{ color: "#444", flex: 1 }}>{row.label}</Text>
+          <Text
+            style={{
+              fontWeight: "700",
+              color: "#111",
+              flex: 1,
+              textAlign: "right",
+            }}
+          >
+            {row.value}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }

@@ -6,7 +6,6 @@ import { getToken } from "../src/lib/session";
 export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,7 +18,10 @@ export default function RootLayout() {
 
         if (!mounted) return;
 
-        const isAuthPage = pathname === "/login" || pathname === "/register";
+        const isAuthPage =
+          pathname === "/login" ||
+          pathname === "/register" ||
+          pathname === "/forgot-password";
 
         if (!loggedIn && !isAuthPage) {
           router.replace("/login");
@@ -31,9 +33,7 @@ export default function RootLayout() {
           return;
         }
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     }
 
@@ -65,6 +65,7 @@ export default function RootLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="login" />
       <Stack.Screen name="register" />
+      <Stack.Screen name="forgot-password" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="new" />
       <Stack.Screen name="vehicles/[id]" />

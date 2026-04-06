@@ -9,11 +9,15 @@ export default function SellVehicleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [soldPrice, setSoldPrice] = useState("");
+  const [buyerName, setBuyerName] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function confirmSale() {
     const payload = {
       soldPrice: Number(soldPrice),
+      buyerName: buyerName.trim(),
+      buyerPhone: buyerPhone.trim(),
     };
 
     if (!id || !Number.isFinite(payload.soldPrice) || payload.soldPrice <= 0) {
@@ -43,7 +47,7 @@ export default function SellVehicleScreen() {
       }
 
       Alert.alert("Sucesso", "Veículo marcado como vendido!");
-      router.back();
+      router.replace(`/vehicles/${id}`);
     } catch {
       Alert.alert("Erro", "Não foi possível concluir a venda.");
     } finally {
@@ -94,7 +98,7 @@ export default function SellVehicleScreen() {
               Marcar como vendido
             </Text>
             <Text style={{ color: "#666", marginTop: 4 }}>
-              Informe o valor final da venda
+              Informe o valor final e os dados do comprador
             </Text>
           </View>
         </View>
@@ -105,6 +109,21 @@ export default function SellVehicleScreen() {
           onChangeText={setSoldPrice}
           placeholder="Digite o valor da venda"
           keyboardType="numeric"
+        />
+
+        <Field
+          label="Nome do comprador"
+          value={buyerName}
+          onChangeText={setBuyerName}
+          placeholder="Digite o nome do comprador"
+        />
+
+        <Field
+          label="Telefone do comprador"
+          value={buyerPhone}
+          onChangeText={setBuyerPhone}
+          placeholder="Digite o telefone"
+          keyboardType="phone-pad"
         />
 
         <Pressable
@@ -126,7 +145,7 @@ export default function SellVehicleScreen() {
       </View>
 
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => router.replace(`/vehicles/${id}`)}
         style={{ paddingVertical: 14, alignItems: "center", marginTop: 14 }}
       >
         <Text style={{ color: "#111", fontWeight: "700" }}>Cancelar</Text>
