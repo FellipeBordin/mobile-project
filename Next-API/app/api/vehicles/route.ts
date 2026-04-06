@@ -25,6 +25,14 @@ function moneyToNumber(v: unknown): number {
   return Number(v);
 }
 
+type CreateVehicleBody = {
+  name?: unknown;
+  plate?: unknown;
+  purchasePrice?: unknown;
+  previousOwnerName?: unknown;
+  previousOwnerPhone?: unknown;
+};
+
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
@@ -52,12 +60,15 @@ export async function GET(req: Request) {
     },
   });
 
-  const data = vehicles.map((v) => {
+  const data = vehicles.map((v: (typeof vehicles)[number]) => {
     const purchasePrice = moneyToNumber(v.purchasePrice);
+
     const totalExpenses = v.expenses.reduce(
-      (acc, e) => acc + moneyToNumber(e.amount),
+      (acc: number, e: (typeof v.expenses)[number]) =>
+        acc + moneyToNumber(e.amount),
       0,
     );
+
     const totalInvested = purchasePrice + totalExpenses;
 
     const soldPrice = v.soldPrice == null ? null : moneyToNumber(v.soldPrice);
@@ -99,7 +110,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const body = await req.json().catch(() => null);
+  const body = (await req.json().catch(() => null)) as CreateVehicleBody | null;
 
   const name = body?.name?.toString().trim();
   const plate = body?.plate?.toString().trim().toUpperCase();
@@ -142,6 +153,7 @@ export async function POST(req: Request) {
     });
   } catch (err: unknown) {
     const error = err as { code?: string };
+
     if (error.code === "P2002") {
       return NextResponse.json(
         { error: "Já existe um veículo com essa placa." },
