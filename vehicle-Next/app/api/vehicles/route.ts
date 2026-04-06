@@ -38,7 +38,7 @@ export async function GET(req: Request) {
   if (!auth) {
     return NextResponse.json(
       { error: "Não autorizado." },
-      { status: 401, headers: corsHeaders() }
+      { status: 401, headers: corsHeaders() },
     );
   }
 
@@ -56,7 +56,7 @@ export async function GET(req: Request) {
     const purchasePrice = moneyToNumber(v.purchasePrice);
     const totalExpenses = v.expenses.reduce(
       (acc, e) => acc + moneyToNumber(e.amount),
-      0
+      0,
     );
     const totalInvested = purchasePrice + totalExpenses;
 
@@ -76,6 +76,10 @@ export async function GET(req: Request) {
       profit,
       purchaseDate: v.purchaseDate,
       soldDate: v.soldDate,
+      previousOwnerName: v.previousOwnerName,
+      previousOwnerPhone: v.previousOwnerPhone,
+      buyerName: v.buyerName,
+      buyerPhone: v.buyerPhone,
       createdAt: v.createdAt,
     };
   });
@@ -91,7 +95,7 @@ export async function POST(req: Request) {
   if (!auth) {
     return NextResponse.json(
       { error: "Não autorizado." },
-      { status: 401, headers: corsHeaders() }
+      { status: 401, headers: corsHeaders() },
     );
   }
 
@@ -101,10 +105,20 @@ export async function POST(req: Request) {
   const plate = body?.plate?.toString().trim().toUpperCase();
   const purchasePrice = Number(body?.purchasePrice);
 
+  const previousOwnerName =
+    body?.previousOwnerName == null || body?.previousOwnerName === ""
+      ? null
+      : body.previousOwnerName.toString().trim();
+
+  const previousOwnerPhone =
+    body?.previousOwnerPhone == null || body?.previousOwnerPhone === ""
+      ? null
+      : body.previousOwnerPhone.toString().trim();
+
   if (!name || !plate || !Number.isFinite(purchasePrice) || purchasePrice < 0) {
     return NextResponse.json(
       { error: "Dados inválidos. Envie name, plate e purchasePrice >= 0." },
-      { status: 400, headers: corsHeaders() }
+      { status: 400, headers: corsHeaders() },
     );
   }
 
@@ -115,6 +129,8 @@ export async function POST(req: Request) {
         plate,
         purchasePrice,
         purchaseDate: new Date(),
+        previousOwnerName,
+        previousOwnerPhone,
         userId: auth.userId,
       },
       select: { id: true },
@@ -125,16 +141,17 @@ export async function POST(req: Request) {
       headers: corsHeaders(),
     });
   } catch (err: unknown) {
-    if (typeof err === "object" && err !== null && typeof (err as Record<string, unknown>).code === "string" && (err as Record<string, unknown>).code === "P2002") {
+    const error = err as { code?: string };
+    if (error.code === "P2002") {
       return NextResponse.json(
         { error: "Já existe um veículo com essa placa." },
-        { status: 409, headers: corsHeaders() }
+        { status: 409, headers: corsHeaders() },
       );
     }
 
     return NextResponse.json(
       { error: "Falha ao criar veículo." },
-      { status: 500, headers: corsHeaders() }
+      { status: 500, headers: corsHeaders() },
     );
   }
 }

@@ -69,14 +69,19 @@ export async function GET(
 
     const purchasePrice = moneyToNumber(vehicle.purchasePrice);
 
-    const expenses = vehicle.expenses.map((e: typeof vehicle.expenses[number]) => ({
-      id: e.id,
-      amount: moneyToNumber(e.amount),
-      note: e.note,
-      createdAt: e.createdAt,
-    }));
+    const expenses = vehicle.expenses.map(
+      (e: (typeof vehicle.expenses)[number]) => ({
+        id: e.id,
+        amount: moneyToNumber(e.amount),
+        note: e.note,
+        createdAt: e.createdAt,
+      }),
+    );
 
-    const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
+    const totalExpenses = expenses.reduce(
+      (acc: number, e) => acc + e.amount,
+      0,
+    );
     const totalInvested = purchasePrice + totalExpenses;
 
     const soldPrice =
@@ -93,8 +98,12 @@ export async function GET(
         status: vehicle.status,
         purchasePrice,
         purchaseDate: vehicle.purchaseDate,
+        previousOwnerName: vehicle.previousOwnerName,
+        previousOwnerPhone: vehicle.previousOwnerPhone,
         soldPrice,
         soldDate: vehicle.soldDate,
+        buyerName: vehicle.buyerName,
+        buyerPhone: vehicle.buyerPhone,
         totalExpenses: Number(totalExpenses.toFixed(2)),
         totalInvested: Number(totalInvested.toFixed(2)),
         profit,
@@ -128,6 +137,16 @@ export async function PUT(
   const body = await req.json().catch(() => null);
 
   const soldPrice = Number(body?.soldPrice);
+
+  const buyerName =
+    body?.buyerName == null || body?.buyerName === ""
+      ? null
+      : body.buyerName.toString().trim();
+
+  const buyerPhone =
+    body?.buyerPhone == null || body?.buyerPhone === ""
+      ? null
+      : body.buyerPhone.toString().trim();
 
   if (!Number.isFinite(soldPrice) || soldPrice <= 0) {
     return NextResponse.json(
@@ -164,6 +183,8 @@ export async function PUT(
       data: {
         soldPrice,
         soldDate: new Date(),
+        buyerName,
+        buyerPhone,
         status: "SOLD",
       },
       select: {
@@ -171,6 +192,8 @@ export async function PUT(
         status: true,
         soldPrice: true,
         soldDate: true,
+        buyerName: true,
+        buyerPhone: true,
       },
     });
 
@@ -181,6 +204,8 @@ export async function PUT(
         soldPrice:
           updated.soldPrice == null ? null : moneyToNumber(updated.soldPrice),
         soldDate: updated.soldDate,
+        buyerName: updated.buyerName,
+        buyerPhone: updated.buyerPhone,
       },
       { headers: corsHeaders() },
     );

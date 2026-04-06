@@ -25,24 +25,30 @@ model User {
 }
 
 model Vehicle {
-  id            String        @id @default(cuid())
-  name          String
-  plate         String        @unique
-  status        VehicleStatus @default(IN_STOCK)
+  id                  String        @id @default(cuid())
+  name                String
+  plate               String        @unique
+  status              VehicleStatus @default(IN_STOCK)
 
-  purchasePrice Decimal
-  purchaseDate  DateTime?
+  purchasePrice       Decimal
+  purchaseDate        DateTime?
 
-  soldPrice     Decimal?
-  soldDate      DateTime?
+  previousOwnerName   String?
+  previousOwnerPhone  String?
 
-  userId        String?
-  user          User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  soldPrice           Decimal?
+  soldDate            DateTime?
 
-  expenses      Expense[]
+  buyerName           String?
+  buyerPhone          String?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  userId              String?
+  user                User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expenses            Expense[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([status])
   @@index([createdAt])
